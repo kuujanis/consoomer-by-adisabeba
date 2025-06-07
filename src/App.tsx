@@ -1,12 +1,11 @@
-import { useCallback, useMemo, useReducer, useRef, useState } from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
 import {Layer, LayerProps, Map, MapLayerMouseEvent, MapRef, NavigationControl, Source} from '@vis.gl/react-maplibre';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import './App.css'
-import { Button, Select } from 'antd';
+import { Select } from 'antd';
 import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, Title, ChartData, TooltipItem, ChartOptions } from "chart.js";
 // import { Bar, Doughnut } from "react-chartjs-2";
 
-import { LeftOutlined, RightOutlined } from '@ant-design/icons';
 import { Doughnut } from 'react-chartjs-2';
 import BarChart from './assets/BarChart';
 
@@ -26,17 +25,14 @@ const styleOptions = [
   {value: 'health', label: <span>Медицинские расходы</span>},
 ]
 
-const municipal_url = new URL('./assets/mo_potreb.geojson', import.meta.url).href;
+const municipal_url = new URL('./assets/mo_potreb_mean_time.geojson', import.meta.url).href;
 
 function App() {
-
-  const [left, toggleLeft] = useReducer((value) => !value, true)
-  const [right, toggleRight] = useReducer((value) => !value, true)
 
   const mapRef = useRef<MapRef | null>(null)
   // const [load, setLoad] = useState<boolean>(true)
 
-  const [selectedMunicipality, setSelectedMunicipality] = useState<{[name: string]: number}|null>()
+  const [selectedMunicipality, setSelectedMunicipality] = useState<{[name: string]: number}|null>(null)
   const [style,setStyle] = useState<string>('sum')
 
   ChartJS.register(ArcElement, Tooltip, CategoryScale, LinearScale, BarElement, Title, Legend);
@@ -125,14 +121,14 @@ function App() {
           ...defaultFillLayer,     
           paint: {
             'fill-color': {
-              property: 'products',
+              property: 'potreb_sum_mean',
               type: 'interval',
               stops: [
                 [0, '#e6f4ea'],
-                [12000, '#b8e2c2'],
-                [13000, '#7ccf9e'],
-                [14500, '#38b56b'],
-                [15000, '#087f4e'],
+                [8000, '#b8e2c2'],
+                [15000, '#7ccf9e'],
+                [25500, '#38b56b'],
+                [35000, '#087f4e'],
               ]
             },
             'fill-opacity': defOpacity
@@ -232,14 +228,14 @@ function App() {
           ...defaultFillLayer,     
           paint: {
             'fill-color': {
-              property: 'products',
+              property: 'potreb_sum_mean',
               type: 'interval',
               stops: [
                 [0, '#e6f4ea'],
-                [12000, '#b8e2c2'],
-                [13000, '#7ccf9e'],
-                [14500, '#38b56b'],
-                [15000, '#087f4e'],
+                [8000, '#b8e2c2'],
+                [15000, '#7ccf9e'],
+                [25500, '#38b56b'],
+                [35000, '#087f4e'],
               ]
             },
             'fill-opacity': defOpacity
@@ -250,7 +246,7 @@ function App() {
   },[style])
 
   const onClick = useCallback((e:MapLayerMouseEvent) => {
-    if (e.features) {
+    if (e.features && e.features.length > 0) {
       console.log(e.features)
       setSelectedMunicipality(e.features[0].properties)
     } else {
@@ -326,11 +322,29 @@ function App() {
     }
   },[]);
 
+  const fieldName: string = useMemo(() => {
+    switch (style) {
+      case 'sum':
+        return 'Все категории'
+      case 'products':
+        return 'Продовольствие'
+      case 'mak':
+        return 'Общественное питание'
+      case 'trans':
+        return 'Транспорт'
+      case 'marketplace':
+        return 'Маркетплейсы'
+      case 'health':
+        return 'Здоровье' 
+      default: return 'Все категории'
+    }
+  },[style])
+
   return (
 
     <div className='main'>
       <div style={{width: '100vw', height: '100vh', display: 'flex', flexDirection: 'row'}}>
-        {left && 
+
           <div style={{
             minWidth: '25%', maxWidth: '25%',  height: '100%', 
             display: 'flex', flexDirection: 'column', alignItems: 'center', 
@@ -377,9 +391,12 @@ function App() {
           </div>
         </div>
           {selectedMunicipality && <div style={{padding: '10px', textAlign: 'center'}}>
-            <b>{selectedMunicipality?.municipal_district_name}</b>
+            <b>{selectedMunicipality?.municipal_district_name_short}</b>
           </div>}
-          <div style={{ position: 'relative', width: '160px', height: '160px' }}>
+          {selectedMunicipality && <div style={{padding: '10px', textAlign: 'center'}}>
+            <b>{fieldName}</b>
+          </div>}
+          {selectedMunicipality && <div style={{ position: 'relative', width: '160px', height: '160px' }}>
             <Doughnut id='doughnut' options={doughnutOptions} data={data} />
               <div style={{
                 position: 'absolute',
@@ -388,16 +405,18 @@ function App() {
                 transform: 'translate(-50%, -50%)',
                 textAlign: 'center',
             }}>
-            {/* <div style={{ fontSize: '24px', fontWeight: 'bold' }}>
-              {diversityIndex}
-            </div> */}
+            <div style={{ fontSize: '24px', fontWeight: 'bold' }}>
+              {/* {selectedMunicipality.potreb_sum_mean.toPrecision(1)} */}
             </div>
-          </div>
-          <BarChart palette={colorPalette}/>
-
+            </div>
+          </div>}
+          {selectedMunicipality && <BarChart palette={colorPalette} properties={selectedMunicipality} name={fieldName}/>}
+          {!selectedMunicipality && <div style={{textAlign: 'center'}}>
+              <h3> Кликните по объекту на карте для получения статистики</h3>
+            </div>}
 
           
-        </div>}
+        </div>
         <Map
           ref={mapRef}
           initialViewState={{
@@ -406,7 +425,7 @@ function App() {
             fitBoundsOptions: {minZoom: 9},
             zoom: 11,
           }}
-          style={{maxWidth: '100%', minWidth: '50%', height: '100%', transition: 'width 0.5s ease'}}
+          style={{width: '75%', height: '100%', transition: 'width 0.5s ease'}}
           mapStyle='https://api.maptiler.com/maps/02e423bb-b55a-4879-8cb6-f365e0a308f7/style.json?key=5UXjcwcX8UyLW6zNAxsl'
           attributionControl={false}
           interactiveLayerIds={['defaultFillLayer']}
@@ -428,20 +447,13 @@ function App() {
           >
             <b>Здания</b>
           </Button> */}
-          <div className='siderButton right' onClick={toggleRight}>
+          {/* <div className='siderButton right' onClick={toggleRight}>
             {right ? <RightOutlined/> : <LeftOutlined/>}
           </div>
           <div className='siderButton left' onClick={toggleLeft}>
             {left ? <LeftOutlined/> : <RightOutlined/>}
-          </div>
+          </div> */}
         </Map>
-        {right &&  <div style={{
-            minWidth: '25%', maxWidth: '25%', height: '100%', display: 'flex', 
-            flexDirection: 'column', alignItems: 'center', 
-            justifyContent: 'space-between', backgroundColor: 'white', transition: 'width 0.5s ease'
-          }}>
-
-        </div>}
 
       </div>
     </div>
