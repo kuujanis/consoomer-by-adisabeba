@@ -406,7 +406,7 @@ function App() {
                 textAlign: 'center',
             }}>
             <div style={{ fontSize: '24px', fontWeight: 'bold' }}>
-              {(selectedMunicipality.potreb_sum_mean/10000).toFixed(0)}к ₽
+              {(selectedMunicipality.potreb_sum_mean/1000).toFixed(0)}к ₽
             </div>
             </div>
           </div>}
